@@ -17,7 +17,7 @@ function caraslab_preprocess_FPdata(Savedir, sel, T1, T2, set_new_trange)
 %               in the data directory.    
 %
 %               if 1, program will prompt user to select folder
-
+ 
 %Written by M Macedo-Lima 10/05/20
 if ~sel
     datafolders = caraslab_lsdir(Savedir);
@@ -179,7 +179,7 @@ for i = 1:numel(datafolders)
 %     Y_fit_all = bls(1) .* y_405_offset + bls(2);
 
     % using non negative robust linear regression
-    bls = fit(y_405_offset', y_465_offset', fittype('poly1'),'Robust','on', 'lower', [0 -Inf]);
+    bls = fit(y_405_offset', y_465_offset', fittype('poly1'),'Robust','on', 'lower', [0 -Inf], 'Normalize', 'on');
 %     bls = fit(y_405_offset', y_465_offset', fittype('poly1'));
     Y_fit_all = bls(y_405_offset)';
 

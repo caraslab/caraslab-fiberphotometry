@@ -2,7 +2,7 @@
 %
 %This pipeline transforms fiber photometry raw -sev data into -mat format, 
 % processes it and outputs event timestamps and some exploratory plots
-
+ 
 % Note that this pipeline was designed to be modular, i.e. you run one bit
 % at a time and you can add/remove/replace modules 
 

@@ -316,7 +316,7 @@ for dummy_idx = 1:numel(datafolders)
         savefig(f1, [output_filename '.fig'])
 
         set(gcf, 'PaperPositionMode', 'auto', 'renderer', 'Painters');
-        print(gcf, '-painters', '-dpdf', '-r300',  output_filename)
+        print(gcf, '-painters', '-dpdf', '-r300',  output_filename, '-fillpage')
         
         %% Save dcOffset signals, 465 and 405 fit, df/f, df/f z-score and 465 z-score as individual tables
         datafilepath = split(cur_savedir, filesep);
