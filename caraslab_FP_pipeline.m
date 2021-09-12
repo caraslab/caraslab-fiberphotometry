@@ -112,3 +112,6 @@ caraslab_getTrialData_FPdata(Savedir, sel)
 
 %% Plot separate responses by AMdepth
 caraslab_getAMDepthData_FPdata(Savedir, sel)
+
+%% Compile data
+compile_FPdata_for_analyses(Savedir)
