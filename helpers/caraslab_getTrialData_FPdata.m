@@ -7,7 +7,11 @@ epocs_names = {{'Spou', 1, 'onset'}, {'Spou', 1, 'offset'}, {'TTyp', 0, 'onset'}
 
 %% Some plotting parameters
 plot_window = [-2, 6];
-baseline_window = [-2, -1];
+baseline_window = [-1, 0];
+
+%% AUC parameters
+stim_window = [0, 2];  % ACx; gcamp6s
+% stim_window = [1, 2.5];  % OFC; gcamp8m
 
 %%
 
@@ -31,14 +35,15 @@ end
 %For each data folder...
 for dummy_idx = 1:numel(datafolders)
     
-    cur_path.name = datafolders{dummy_idx};
-    cur_savedir = fullfile(Savedir, cur_path.name);
+    cur_path = datafolders{dummy_idx};
+    cur_savedir = fullfile(Savedir, cur_path);
     
     %Load in info file
     % Catch error if -mat file is not found
     try
-        cur_infofiledir = dir(fullfile(cur_savedir, [cur_path.name '.info']));
-        load(fullfile(cur_infofiledir.folder, cur_infofiledir.name), '-mat', 'epData');
+        cur_infofiledir = dir(fullfile(cur_savedir, [cur_path '.info']));
+        temp = load(fullfile(cur_infofiledir.folder, cur_infofiledir.name), '-mat', 'epData');
+        epData = temp.epData;
     catch ME
         if strcmp(ME.identifier, 'MATLAB:load:couldNotReadFile')
             fprintf('\n-mat file not found\n')
@@ -50,18 +55,19 @@ for dummy_idx = 1:numel(datafolders)
         end
     end
     fprintf('\n======================================================\n')
-    fprintf('Z-scoring photometry data, %s.......\n', cur_path.name)
+    fprintf('Z-scoring photometry data, %s.......\n', cur_path)
     
     t0 = tic;
     % Load CSV file
-    cur_datafiledir = dir(fullfile(cur_savedir, ['*' cur_path.name '_dff.csv']));
+    cur_datafiledir = dir(fullfile(cur_savedir, ['*' cur_path '_dff.csv']));
     fullpath = fullfile(cur_datafiledir.folder, cur_datafiledir.name);
     cur_data = readtable(fullpath);
     time_vec = cur_data.Time;
     fs = 1/mean(diff(time_vec));
     
     % For each epoc
-    for epoc_info=epocs_names
+    for epoc_info_idx=1:length(epocs_names)
+        epoc_info = epocs_names(epoc_info_idx);
         cur_epoc_name = epoc_info{1}{1};
         cur_epoc_code = epoc_info{1}{2};
         cur_epoc_onsetoffset = epoc_info{1}{3};
@@ -138,7 +144,7 @@ for dummy_idx = 1:numel(datafolders)
         ste_465 = std(double(dcOff_465), 'omitnan')/sqrt(size(dcOff_465(all(~isnan(dcOff_465),2),:),1));
         
         close all;
-        f1 = figure;
+        f1 = figure('Name',['FP_trialPlot_' cur_epoc_name '_code' int2str(cur_epoc_code) '_' cur_epoc_onsetoffset],'NumberTitle','off');
         subplot(3,3,1)
         plot(x_all, mean_405, 'color', color_405, 'LineWidth', 3); hold on;
         plot(x_all, mean_465, 'color', color_465, 'LineWidth', 3); 
@@ -235,11 +241,11 @@ for dummy_idx = 1:numel(datafolders)
 
         %% df/f Z-scored
         zscore_dff = zeros(size(raster_dff));
-        for dummy_idx = 1:size(raster_dff,1)
+        for dummy_idx2 = 1:size(raster_dff,1)
             ind = x_all(1,:) < baseline_window(2) & x_all(1,:) > baseline_window(1);
-            zb = mean(raster_dff(dummy_idx,ind), 'omitnan'); % baseline period mean
-            zsd = std(raster_dff(dummy_idx,ind), 'omitnan'); % baseline period stdev
-            zscore_dff(dummy_idx,:)=(raster_dff(dummy_idx,:) - zb)/zsd; % Z score per bin
+            zb = mean(raster_dff(dummy_idx2,ind), 'omitnan'); % baseline period mean
+            zsd = std(raster_dff(dummy_idx2,ind), 'omitnan'); % baseline period stdev
+            zscore_dff(dummy_idx2,:)=(raster_dff(dummy_idx2,:) - zb)/zsd; % Z score per bin
         end
 
         % Standard error of the z-score
@@ -275,11 +281,11 @@ for dummy_idx = 1:numel(datafolders)
         
         %% 465 Z-scored
         zscore_465 = zeros(size(dcOff_465));
-        for dummy_idx = 1:size(dcOff_465,1)
+        for dummy_idx2 = 1:size(dcOff_465,1)
             ind = x_all(1,:) < baseline_window(2) & x_all(1,:) > baseline_window(1);
-            zb = mean(dcOff_465(dummy_idx,ind)); % baseline period mean
-            zsd = std(dcOff_465(dummy_idx,ind)); % baseline period stdev
-            zscore_465(dummy_idx,:)=(dcOff_465(dummy_idx,:) - zb)/zsd; % Z score per bin
+            zb = mean(dcOff_465(dummy_idx2,ind)); % baseline period mean
+            zsd = std(dcOff_465(dummy_idx2,ind)); % baseline period stdev
+            zscore_465(dummy_idx2,:)=(dcOff_465(dummy_idx2,:) - zb)/zsd; % Z score per bin
         end
         % Standard error of the z-score
         zmean = mean(zscore_465, 'omitnan');
@@ -352,8 +358,8 @@ for dummy_idx = 1:numel(datafolders)
         
         %% AUC calculation
         % Between -0.5 and 2
-        AUC_zscore_dff = trapz(zscore_dff(:, x_all > -0.5 & x_all < 2), 2);
-        AUC_zscore_465 = trapz(zscore_465(:, x_all > -0.5 & x_all < 2), 2);
+        AUC_zscore_dff = trapz(zscore_dff(:, x_all > stim_window(1) & x_all < stim_window(2)), 2);
+        AUC_zscore_465 = trapz(zscore_465(:, x_all > stim_window(1) & x_all < stim_window(2)), 2);
         
         %Compile and save tables
 

@@ -41,9 +41,9 @@ Behaviordir = '/mnt/CL_4TB_2/Matt/Fiber photometry';
 % Probetype = 'NNA4x16Lin64';
 % badchannels = [33, 35, 37, 55, 61, 64];
 
-% Tankdir = '/mnt/CL_4TB_2/Matt/Fiber photometry/OFC-hSyn/SUBJ-ID-104-210608-104954';
+Tankdir = '/mnt/CL_4TB_2/Matt/Fiber photometry/OFC-hSyn/SUBJ-ID-104-210608-104954';
 % Tankdir = '/mnt/CL_4TB_2/Matt/Fiber photometry/OFC-hSyn/SUBJ-ID-105-210608-115446';
-Tankdir = '/mnt/CL_4TB_2/Matt/Fiber photometry/ACx-hSyn/SUBJ-ID-106-210608-111503';
+% Tankdir = '/mnt/CL_4TB_2/Matt/Fiber photometry/ACx-hSyn/SUBJ-ID-106-210608-111503';
 % Tankdir = '/mnt/CL_4TB_2/Matt/Fiber photometry/ACx-hSyn/SUBJ-ID-108-210616-115327';
 
 Savedir =  Tankdir;
@@ -91,7 +91,7 @@ caraslab_reformat_synapse_FP_data(Tankdir,Savedir,sel);
 % IMPORTANT 2: organize your behavior files into subfolders to be analyzed together , e.g.
 % shockTraining_pre, shockTraining_active, psychTesting_active, psychTesting_muscimol etc
 % select those folders when prompted (you can select multiple folders)
-caraslab_behav_pipeline(Savedir, Behaviordir, sel, 'synapse');
+caraslab_behav_pipeline(Savedir, Behaviordir, 'synapse');
 
 %% REMOVE ARTIFACTS AND FILTER
 % This function takes .dat files and employs in this order:
@@ -105,13 +105,14 @@ caraslab_behav_pipeline(Savedir, Behaviordir, sel, 'synapse');
 % read from T1 until the end
 T1=0;
 T2=Inf;
-caraslab_preprocess_FPdata(Savedir, sel, T1, T2, 1)
+caraslab_preprocess_FPdata(Savedir, sel, T1, T2, 0)
 
 %% Output timestamped waves and AUCs
 caraslab_getTrialData_FPdata(Savedir, sel)
 
 %% Plot separate responses by AMdepth
-caraslab_getAMDepthData_FPdata(Savedir, sel)
+only_response = 'hit';  % For OFC data
+caraslab_getAMDepthData_FPdata(Savedir, sel, only_response)
 
 %% Compile data
 compile_FPdata_for_analyses(Savedir)

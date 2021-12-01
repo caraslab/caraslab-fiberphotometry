@@ -1,9 +1,9 @@
-function caraslab_getAMDepthData_FPdata(Savedir, sel)
+function caraslab_getAMDepthData_FPdata(Savedir, sel, only_response)
 
 %% Timestamps of interest
 % Change this if needed; It will skip non-present ones
 % Organized in {NAME, CODE, ONSET/OFFSET}
-epocs_names = {{'TTyp', 0, 'onset'}};
+% epocs_names = {{'TTyp', 0, 'onset'}};
 
 %% Some plotting parameters
 plot_window = [-2, 6];
@@ -93,10 +93,25 @@ for dummy_idx = 1:numel(datafolders)
     all_heatmap_ax = [];
     for AMdepth_ind=1:length(all_AMdepth)
         AMdepth = all_AMdepth(AMdepth_ind);
-        all_resp_ax = [all_resp_ax subplot(4, length(all_AMdepth), subplot_counter)];
-        
+
         % Filter current trials
-        cur_ind = trialInfo_AMtrials.AMdepth == AMdepth;
+
+        
+        if strcmp(only_response, 'hit')
+            cur_ind = (trialInfo_AMtrials.AMdepth == AMdepth) & (trialInfo_AMtrials.Hit == 1);
+        elseif strcmp(only_response, 'miss')
+            cur_ind = (trialInfo_AMtrials.AMdepth == AMdepth) & (trialInfo_AMtrials.Miss == 1);
+        else
+            cur_ind = trialInfo_AMtrials.AMdepth == AMdepth;
+        end
+        
+        % Not sure how this is possible but it has happened...
+        if length(cur_ind) > size(dffzscore_df, 1)
+            cur_ind = cur_ind(1:end-1);
+        end
+        
+        all_resp_ax = [all_resp_ax subplot(4, length(all_AMdepth), subplot_counter)];
+
         cur_responses = table2array(dffzscore_df(cur_ind,:));
         
         % Plot mean responses
@@ -140,7 +155,7 @@ for dummy_idx = 1:numel(datafolders)
         % Gather dff_zscores and dffs to get FP d' values
         % dff_zscore
         baseline_AUCs = trapz(cur_responses(:, x_all >= -1 & x_all < 0), 2);
-        response_AUCs = trapz(cur_responses(:, x_all >= 0 & x_all < 2), 2);
+        response_AUCs = trapz(cur_responses(:, x_all >= 0 & x_all < 1), 2);
         dprime = 2*(mean(response_AUCs, 'omitnan') - mean(baseline_AUCs, 'omitnan')) ...
             / (std(response_AUCs, 'omitnan') + std(baseline_AUCs, 'omitnan'));
         dprime_dffzscoreAUC = [dprime_dffzscoreAUC dprime];
@@ -148,7 +163,7 @@ for dummy_idx = 1:numel(datafolders)
         % dff
         cur_responses = table2array(dff_df(cur_ind,:));
         baseline_AUCs = trapz(cur_responses(:, x_all >= -1 & x_all < 0), 2);
-        response_AUCs = trapz(cur_responses(:, x_all >= 0 & x_all < 2), 2);
+        response_AUCs = trapz(cur_responses(:, x_all >= 0 & x_all < 1), 2);
         dprime = 2*(mean(response_AUCs, 'omitnan') - mean(baseline_AUCs, 'omitnan')) ...
             / (std(response_AUCs, 'omitnan') + std(baseline_AUCs, 'omitnan'));
         dprime_dffAUC = [dprime_dffAUC dprime];
@@ -191,20 +206,35 @@ for dummy_idx = 1:numel(datafolders)
     subj_id = split(datafilepath{end-1}, '-');
     subj_id = join(subj_id(1:3), "-");
 
-    output_filename = fullfile(cur_savedir, [subj_id{1} '_' ...
-            datafilepath{end} '_AMdepth_responses' ]);
+    if strcmp(only_response, 'hit')
+        output_filename = fullfile(cur_savedir, [subj_id{1} '_' ...
+                datafilepath{end} '_onlyHits_AMdepth_responses' ]);
+    elseif strcmp(only_response, 'miss')
+        output_filename = fullfile(cur_savedir, [subj_id{1} '_' ...
+                datafilepath{end} '_onlyMisses_AMdepth_responses' ]);
+    else
+        output_filename = fullfile(cur_savedir, [subj_id{1} '_' ...
+                datafilepath{end} '_AMdepth_responses' ]);
+    end    
+
 
     savefig(f1, [output_filename '.fig'])
 
     set(gcf, 'PaperPositionMode', 'auto', 'renderer', 'Painters');
-    print(gcf, '-painters', '-dpdf', '-r300',  output_filename)
-    
-    %Compile and save tables
+    print(gcf, '-painters', '-dpdf', '-r300',  output_filename, '-fillpage')
 
+    %Compile and save tables
+    if strcmp(only_response, 'hit')
+        postname = '_onlyHits_neuralDprime.csv';
+    elseif strcmp(only_response, 'miss')
+        postname = '_onlyMisses_neuralDprime.csv';
+    else
+        postname = '_neuralDprime.csv';
+    end
     TT = array2table([log_AMdepth avg_AUC' dprime_dffAUC' dprime_dffzscoreAUC'],...
         'VariableNames',{'Stimulus' 'average_AUC' 'dff_d_prime' 'dffzscore_d_prime'});
     writetable(TT, fullfile(cur_savedir, [subj_id{1} '_' ...
-            datafilepath{end} '_neuralDprime.csv']));
+            datafilepath{end} postname]));
     
     tEnd = toc(t0);
     fprintf('Done in: %d minutes and %f seconds\n', floor(tEnd/60), rem(tEnd,60));
