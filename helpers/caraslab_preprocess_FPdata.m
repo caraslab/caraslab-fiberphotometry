@@ -1,4 +1,4 @@
-function caraslab_preprocess_FPdata(Savedir, sel, T1, T2, set_new_trange)
+function caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1)
     % This function takes fiber photometry csv files and employs in this order:
     % 1. Downsampling 10x by interpolation
     % 2. Low-pass filter
@@ -65,7 +65,7 @@ function caraslab_preprocess_FPdata(Savedir, sel, T1, T2, set_new_trange)
         % Create a configs variable to hold some info about the recording.
         % Optionally read a previously saved config to read info about T1 and
         % T2
-        if set_new_trange
+        if guess_t1
             ops = struct();
         else
             %Load in configuration file (contains ops struct)
@@ -107,29 +107,29 @@ function caraslab_preprocess_FPdata(Savedir, sel, T1, T2, set_new_trange)
         % Downsample here so fitting improves and everything speeds  up
 
         % Pad with "0"s to avoid filter artifacts
-        padsize = 1000;
-        y_465 = [repmat(y_465(1,:), [padsize 1]); y_465; repmat(y_465(end,:), [padsize 1])];
-        y_405 = [repmat(y_405(1,:), [padsize 1]); y_405; repmat(y_405(end,:), [padsize 1])];
+%         padsize = 1000;
+%         y_465 = [repmat(y_465(1,:), [padsize 1]); y_465; repmat(y_465(end,:), [padsize 1])];
+%         y_405 = [repmat(y_405(1,:), [padsize 1]); y_405; repmat(y_405(end,:), [padsize 1])];
 
-        lowpass = 5;
-%         [b1, a1] = butter(3, 2*lowpass/(fs/N), 'low'); % butterworth filter with only 3 nodes (otherwise it's unstable for float32)
-        [b1, a1] = butter(3, 2*lowpass/(fs), 'low'); % butterworth filter with only 3 nodes (otherwise it's unstable for float32)
-
-        ops.lowpass = lowpass;
-
-        % Filter then remove padding
-        y_465 = filter(b1, a1, y_465); % causal forward filter
-        y_465 = flipud(y_465); % reverse time
-        y_465 = filter(b1, a1, y_465); % causal forward filter again
-        y_465 = flipud(y_465); % reverse time back
-
-        y_405 = filter(b1, a1, y_405); % causal forward filter
-        y_405 = flipud(y_405); % reverse time
-        y_405 = filter(b1, a1, y_405); % causal forward filter again
-        y_405 = flipud(y_405); % reverse time back
-
-        y_465 = y_465(padsize+1:end-padsize, :);
-        y_405 = y_405(padsize+1:end-padsize, :);
+%         lowpass = 5;
+% %         [b1, a1] = butter(3, 2*lowpass/(fs/N), 'low'); % butterworth filter with only 3 nodes (otherwise it's unstable for float32)
+%         [b1, a1] = butter(3, 2*lowpass/(fs), 'low'); % butterworth filter with only 3 nodes (otherwise it's unstable for float32)
+% 
+%         ops.lowpass = lowpass;
+% 
+%         % Filter then remove padding
+%         y_465 = filter(b1, a1, y_465); % causal forward filter
+%         y_465 = flipud(y_465); % reverse time
+%         y_465 = filter(b1, a1, y_465); % causal forward filter again
+%         y_465 = flipud(y_465); % reverse time back
+% 
+%         y_405 = filter(b1, a1, y_405); % causal forward filter
+%         y_405 = flipud(y_405); % reverse time
+%         y_405 = filter(b1, a1, y_405); % causal forward filter again
+%         y_405 = flipud(y_405); % reverse time back
+% 
+%         y_465 = y_465(padsize+1:end-padsize, :);
+%         y_405 = y_405(padsize+1:end-padsize, :);
 
         % Zero-phase moving-mean
         mov_mean_filter = 1/100*ones(100,1);
@@ -140,43 +140,51 @@ function caraslab_preprocess_FPdata(Savedir, sel, T1, T2, set_new_trange)
         % from that point + 30 s
         % This was determined via visual inspection. Make sure to inspect!
         % Check if T1 and T2 already exist
-        if ~set_new_trange
-            if isfield(ops, 'T1')
-                T1 = ops.T1;
-            end
-            if isfield(ops, 'T2')
-                T2 = ops.T2;
+        if ~guess_t1
+            if isfield(ops, 'tranges')
+                tranges = ops.tranges;
             end
         end
+        
+        % Loop through the time ranges and eliminate data points outside of
+        % them
+        y_465_offset = [];
+        y_405_offset = [];
+        time_vec_offset = [];
+        new_tranges = {};
+        for trange_idx=1:length(tranges)
+            trange = tranges{trange_idx};
+            
+            % Calculate first timestamp 
+            if trange(1) == 0  && guess_t1 == 1  
+                diff_thresh = 0.3;
+                diff_465 = diff(y_465);
+                crossing = find(diff_465 > diff_thresh, 1, 'first');
+                % Eliminate from start until crossing + fs*10
+                T1_idx = round(crossing + fs*10);
+            else
+                T1_idx = max([1, floor(trange(1)*fs)]);
+            end
 
-        % Calculate T1 if T1 == 0
-        if T1 == 0 || isempty(T1)
-            diff_thresh = 0.3;
-            diff_465 = diff(y_465);
-            crossing = find(diff_465 > diff_thresh, 1, 'first');
-            % Eliminate from start until crossing + fs*10
-            T1_idx = round(crossing + fs*10);
-        else
-            T1_idx = max([1, floor(T1*fs)]);
+            % Set T2 to whole recording if T2==Inf
+            if trange(2) == Inf
+                T2_idx = length(time_vec);
+            else
+                T2_idx = min(length(y_465), ceil(trange(2)*fs));
+            end
+            
+            % Fill signals with valid input
+            y_465_offset = [y_465_offset; y_465(T1_idx:T2_idx)];
+            y_405_offset = [y_405_offset; y_405(T1_idx:T2_idx)];
+            time_vec_offset = [time_vec_offset; time_vec(T1_idx:T2_idx)];
+            
+            % Save new tranges for future use if needed
+            new_tranges{end+1} = [T1_idx/fs T2_idx/fs];
         end
-
-        % Set T2 to whole recording if T2==Inf
-        if T2 ~= Inf
-            T2_idx = min(length(y_465), ceil(T2*fs));
-        else
-            T2_idx = length(time_vec);
-        end
-
-        % Save timeranges in case they changed
-        new_T1 = T1_idx/fs;
-        new_T2 = T2_idx/fs;
-        ops.T1 = new_T1;
-        ops.T2 = new_T2;    
-
-        % Remove points before fitting
-        y_465_offset = y_465(T1_idx:T2_idx);
-        y_405_offset = y_405(T1_idx:T2_idx);
-        time_vec_offset = time_vec(T1_idx:T2_idx);
+        
+        % Update ops
+        tranges = new_tranges;
+        ops.tranges = tranges;
         
         % airPLS algorithm to correct baseline
         airPLSconfig.input = num2cell([10e9, 1, 0.1, 0.5, 50]);
@@ -207,6 +215,8 @@ function caraslab_preprocess_FPdata(Savedir, sel, T1, T2, set_new_trange)
         fit_success = 0;
         N = 1;
         while ~fit_success && N < 100
+            
+            % Fit function cannot handle nans so mask them out here
             [bls, ~, O] = fit(y_405_offset_pls, y_465_offset_pls, ...
                 fittype('poly1'),'Robust','on', 'lower', [0 -Inf], 'Normalize', 'on');
             fit_success = O.exitflag;
@@ -262,8 +272,19 @@ function caraslab_preprocess_FPdata(Savedir, sel, T1, T2, set_new_trange)
         subplot(4, 1, 1)
         plot(time_vec, y_405, 'color', color_405, 'LineWidth', 1); hold on;
         plot(time_vec, y_465, 'color', color_465, 'LineWidth', 1);
-        line([time_vec(T1_idx) time_vec(T1_idx)], [0 1000], 'LineWidth', 2, 'LineStyle', ':', 'color', [179, 179, 255]/255);
-        line([time_vec(T2_idx) time_vec(T2_idx)], [0 1000], 'LineWidth', 2, 'LineStyle', ':', 'color', [255, 102, 178]/255);
+        
+        % Highlight valid time ranges
+        fill_YY = [min(y_465), max(y_465)];
+        YY = repelem(fill_YY, 1, 2);
+        fill_color = [0, 0, 153]/255;
+        for trange_idx=1:length(tranges)
+            trange = tranges{trange_idx};
+            fill_XX = [trange(1) trange(2)];
+            XX = [fill_XX, fliplr(fill_XX)];
+            h = fill(XX, YY, fill_color);
+            % Choose a number between 0 (invisible) and 1 (opaque) for facealpha.  
+            set(h,'facealpha',.05,'edgecolor','none')
+        end
 
         % Finish up the plot
         axis tight

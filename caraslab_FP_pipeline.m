@@ -41,11 +41,15 @@ Behaviordir = '/mnt/CL_4TB_2/Matt/Fiber photometry';
 % Probetype = 'NNA4x16Lin64';
 % badchannels = [33, 35, 37, 55, 61, 64];
 
-Tankdir = '/mnt/CL_4TB_2/Matt/Fiber photometry/OFC-hSyn/SUBJ-ID-104-210608-104954';
+% Tankdir = '/mnt/CL_4TB_2/Matt/Fiber photometry/OFC-hSyn/SUBJ-ID-104-210608-104954';
 % Tankdir = '/mnt/CL_4TB_2/Matt/Fiber photometry/OFC-hSyn/SUBJ-ID-105-210608-115446';
 % Tankdir = '/mnt/CL_4TB_2/Matt/Fiber photometry/ACx-hSyn/SUBJ-ID-106-210608-111503';
 % Tankdir = '/mnt/CL_4TB_2/Matt/Fiber photometry/ACx-hSyn/SUBJ-ID-108-210616-115327';
 
+% GRABNE pilots
+% Tankdir = '/mnt/CL_4TB_2/Matt/Fiber photometry/ACx-hSyn-GRABNE/SUBJ-ID-239-211130-110221';
+% Tankdir = '/mnt/CL_4TB_2/Matt/Fiber photometry/ACx-hSyn-GRABNE/SUBJ-ID-206-211117-103731';
+Tankdir = '/mnt/CL_4TB_2/Matt/Fiber photometry/ACx-hSyn-GRABNE/SUBJ-ID-207-211117-110621';
 Savedir =  Tankdir;
 
 sel = 1;  % Select subfolders; 0 will run all subfolders
@@ -103,9 +107,9 @@ caraslab_behav_pipeline(Savedir, Behaviordir, 'synapse');
 % Used to ignore points of the signal before the fitting; 
 % If T1=0, automatic detection of LED onset will be performed; T2=Inf will
 % read from T1 until the end
-T1=0;
-T2=Inf;
-caraslab_preprocess_FPdata(Savedir, sel, T1, T2, 0)
+tranges = {[230, Inf]};
+guess_t1 =1;
+caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1)
 
 %% Output timestamped waves and AUCs
 caraslab_getTrialData_FPdata(Savedir, sel)
