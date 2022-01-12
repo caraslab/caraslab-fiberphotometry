@@ -157,7 +157,7 @@ function caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1)
             
             % Calculate first timestamp 
             if trange(1) == 0  && guess_t1 == 1  
-                diff_thresh = 0.3;
+                diff_thresh = 1.5;
                 diff_465 = diff(y_465);
                 crossing = find(diff_465 > diff_thresh, 1, 'first');
                 % Eliminate from start until crossing + fs*10

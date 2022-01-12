@@ -41,6 +41,7 @@ Behaviordir = '/mnt/CL_4TB_2/Matt/Fiber photometry';
 % Probetype = 'NNA4x16Lin64';
 % badchannels = [33, 35, 37, 55, 61, 64];
 
+% hSyn pilots
 % Tankdir = '/mnt/CL_4TB_2/Matt/Fiber photometry/OFC-hSyn/SUBJ-ID-104-210608-104954';
 % Tankdir = '/mnt/CL_4TB_2/Matt/Fiber photometry/OFC-hSyn/SUBJ-ID-105-210608-115446';
 % Tankdir = '/mnt/CL_4TB_2/Matt/Fiber photometry/ACx-hSyn/SUBJ-ID-106-210608-111503';
@@ -48,8 +49,14 @@ Behaviordir = '/mnt/CL_4TB_2/Matt/Fiber photometry';
 
 % GRABNE pilots
 % Tankdir = '/mnt/CL_4TB_2/Matt/Fiber photometry/ACx-hSyn-GRABNE/SUBJ-ID-239-211130-110221';
+% Tankdir = '/mnt/CL_4TB_2/Matt/Fiber photometry/ACx-hSyn-GRABNE/SUBJ-ID-240-211124-153521';
+% Tankdir = '/mnt/CL_4TB_2/Matt/Fiber photometry/ACx-hSyn-GRABNE/SUBJ-ID-205-211117-111337';
 % Tankdir = '/mnt/CL_4TB_2/Matt/Fiber photometry/ACx-hSyn-GRABNE/SUBJ-ID-206-211117-103731';
-Tankdir = '/mnt/CL_4TB_2/Matt/Fiber photometry/ACx-hSyn-GRABNE/SUBJ-ID-207-211117-110621';
+% Tankdir = '/mnt/CL_4TB_2/Matt/Fiber photometry/ACx-hSyn-GRABNE/SUBJ-ID-207-211117-110621';
+
+% AAVrg in ACx, fiber in OFC 
+Tankdir = '/mnt/CL_4TB_2/Matt/Fiber photometry/ACx-AAVrg-GCaMP8s_OFC-VO-fiber/SUBJ-ID-279-211223-110906';
+
 Savedir =  Tankdir;
 
 sel = 1;  % Select subfolders; 0 will run all subfolders
@@ -107,7 +114,7 @@ caraslab_behav_pipeline(Savedir, Behaviordir, 'synapse');
 % Used to ignore points of the signal before the fitting; 
 % If T1=0, automatic detection of LED onset will be performed; T2=Inf will
 % read from T1 until the end
-tranges = {[230, Inf]};
+tranges = {[200, Inf]};
 guess_t1 =1;
 caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1)
 
@@ -115,7 +122,7 @@ caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1)
 caraslab_getTrialData_FPdata(Savedir, sel)
 
 %% Plot separate responses by AMdepth
-only_response = 'hit';  % For OFC data
+only_response = 'hit';  % all, miss, hit, fa
 caraslab_getAMDepthData_FPdata(Savedir, sel, only_response)
 
 %% Compile data

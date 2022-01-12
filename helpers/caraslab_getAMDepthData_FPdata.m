@@ -101,6 +101,8 @@ for dummy_idx = 1:numel(datafolders)
             cur_ind = (trialInfo_AMtrials.AMdepth == AMdepth) & (trialInfo_AMtrials.Hit == 1);
         elseif strcmp(only_response, 'miss')
             cur_ind = (trialInfo_AMtrials.AMdepth == AMdepth) & (trialInfo_AMtrials.Miss == 1);
+        elseif strcmp(only_response, 'fa')
+            cur_ind = (trialInfo_AMtrials.AMdepth == AMdepth) & (trialInfo_AMtrials.FA == 1);
         else
             cur_ind = trialInfo_AMtrials.AMdepth == AMdepth;
         end
