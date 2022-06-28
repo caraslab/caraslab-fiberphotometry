@@ -101,8 +101,6 @@ for dummy_idx = 1:numel(datafolders)
             cur_ind = (trialInfo_AMtrials.AMdepth == AMdepth) & (trialInfo_AMtrials.Hit == 1);
         elseif strcmp(only_response, 'miss')
             cur_ind = (trialInfo_AMtrials.AMdepth == AMdepth) & (trialInfo_AMtrials.Miss == 1);
-        elseif strcmp(only_response, 'fa')
-            cur_ind = (trialInfo_AMtrials.AMdepth == AMdepth) & (trialInfo_AMtrials.FA == 1);
         else
             cur_ind = trialInfo_AMtrials.AMdepth == AMdepth;
         end
@@ -120,7 +118,6 @@ for dummy_idx = 1:numel(datafolders)
         mean_resp = mean(cur_responses, 1, 'omitnan');
         ste_resp = std(cur_responses, 1, 'omitnan')/sqrt(size(cur_responses(all(~isnan(cur_responses),2),:),1));
         
-
         % Create the standard error bands for the 405 signal
         XX = [x_all, fliplr(x_all)];
         YY = [mean_resp + ste_resp, fliplr(mean_resp - ste_resp)];

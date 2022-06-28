@@ -1,4 +1,4 @@
-function caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1)
+function caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1, select_trange, subtract_405)
     % This function takes fiber photometry csv files and employs in this order:
     % 1. Downsampling 10x by interpolation
     % 2. Low-pass filter
@@ -34,11 +34,17 @@ function caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1)
     %     datafolders = {name};  
     %     
     end
+    
 
+    
+    % Diagnostic plot colors
+    global color_405 color_465
+    color_405 = [179, 0, 179]/255;
+    color_465 = [0, 128, 0]/255;
 
     %For each data folder...
     for i = 1:numel(datafolders)
-
+        close all;
         cur_path.name = datafolders{i};
         cur_savedir = fullfile(Savedir, cur_path.name);
 
@@ -152,42 +158,69 @@ function caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1)
         y_405_offset = [];
         time_vec_offset = [];
         new_tranges = {};
-        for trange_idx=1:length(tranges)
-            trange = tranges{trange_idx};
-            
-            % Calculate first timestamp 
-            if trange(1) == 0  && guess_t1 == 1  
-                diff_thresh = 1.5;
-                diff_465 = diff(y_465);
-                crossing = find(diff_465 > diff_thresh, 1, 'first');
-                % Eliminate from start until crossing + fs*10
-                T1_idx = round(crossing + fs*10);
-            else
-                T1_idx = max([1, floor(trange(1)*fs)]);
-            end
-
-            % Set T2 to whole recording if T2==Inf
-            if trange(2) == Inf
-                T2_idx = length(time_vec);
-            else
-                T2_idx = min(length(y_465), ceil(trange(2)*fs));
-            end
-            
-            % Fill signals with valid input
-            y_465_offset = [y_465_offset; y_465(T1_idx:T2_idx)];
-            y_405_offset = [y_405_offset; y_405(T1_idx:T2_idx)];
-            time_vec_offset = [time_vec_offset; time_vec(T1_idx:T2_idx)];
-            
-            % Save new tranges for future use if needed
-            new_tranges{end+1} = [T1_idx/fs T2_idx/fs];
-        end
         
+                    
+        if select_trange
+            new_tranges = select_tranges_from_plot(time_vec, y_405, y_465);
+            
+            for trange_idx=1:length(new_tranges)
+                cur_trange = new_tranges{trange_idx};
+                T1_idx = round(cur_trange(1)*fs, 0);
+                T2_idx = round(cur_trange(2)*fs, 0);
+                % Fill signals with valid input
+                y_465_offset = [y_465_offset; y_465(T1_idx:T2_idx)];
+                y_405_offset = [y_405_offset; y_405(T1_idx:T2_idx)];
+                time_vec_offset = [time_vec_offset; time_vec(T1_idx:T2_idx)];
+            end
+        else
+            for trange_idx=1:length(tranges)
+                trange = tranges{trange_idx};
+
+                % Calculate first timestamp 
+                if trange(1) == 0  && guess_t1 == 1  
+
+    %                 diff_thresh = 0.02;
+                    diff_465 = diff(diff(y_465));
+
+                    diff_mean = mean(diff_465);
+                    diff_std = std(diff_465);
+                    diff_thresh = diff_mean + 20*diff_std;
+
+                    % DEBUG
+    %                 figure;
+    %                 plot(diff_465);
+
+                    crossing = find(diff_465 > diff_thresh, 1, 'first');
+                    % Eliminate from start until crossing + fs*10
+                    T1_idx = round(crossing + fs*10);
+                else
+                    T1_idx = max([1, floor(trange(1)*fs)]);
+                end
+
+                % Set T2 to whole recording if T2==Inf
+                if trange(2) == Inf
+                    T2_idx = length(time_vec);
+                else
+                    T2_idx = min(length(y_465), ceil(trange(2)*fs));
+                end
+
+                % Fill signals with valid input
+                y_465_offset = [y_465_offset; y_465(T1_idx:T2_idx)];
+                y_405_offset = [y_405_offset; y_405(T1_idx:T2_idx)];
+                time_vec_offset = [time_vec_offset; time_vec(T1_idx:T2_idx)];
+
+                % Save new tranges for future use if needed
+                new_tranges{end+1} = [T1_idx/fs T2_idx/fs];
+            end
+        end
+
         % Update ops
-        tranges = new_tranges;
-        ops.tranges = tranges;
+        ops.tranges = new_tranges;
         
         % airPLS algorithm to correct baseline
-        airPLSconfig.input = num2cell([10e9, 1, 0.1, 0.5, 50]);
+        % Default parameters seem to work well: num2cell([10e8, 1, 0.1, 0.5, 50])
+        airPLSconfig.input = num2cell([10e8, 1, 0.1, 0.5, 50]);
+        
         [y_465_offset_pls,y_465_offset_base]= airPLS(y_465_offset', airPLSconfig.input{:});
         y_465_offset_pls = y_465_offset_pls';
         y_465_offset_base = y_465_offset_base';
@@ -248,7 +281,11 @@ function caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1)
         
         % Subtract Y_fit to get the residual 'transients'; 
         % the standardization was already performed before fitting
-        y_465_sub = y_465_offset_pls - Y_fit_all;
+        if subtract_405
+            y_465_sub = y_465_offset_pls - Y_fit_all;
+        else
+            y_465_sub = y_465_offset_pls;
+        end
 
         % Compile and save table
         datafilepath = split(cur_datafiledir.folder, filesep);
@@ -261,9 +298,7 @@ function caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1)
             'VariableNames',{'Time' 'Ch465_mV' 'Ch405_mV' 'Ch405_fit' 'Ch465_dff'});
         writetable(TT, [datafilename '_dff.csv']);    
 
-        % Diagnostic Plots 
-        color_405 = [179, 0, 179]/255;
-        color_465 = [0, 128, 0]/255;
+        %% Plots
 
         close all;
         f = figure;
@@ -274,11 +309,11 @@ function caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1)
         plot(time_vec, y_465, 'color', color_465, 'LineWidth', 1);
         
         % Highlight valid time ranges
-        fill_YY = [min(y_465), max(y_465)];
+        fill_YY = [min([y_465; y_405]), max([y_465; y_405])];
         YY = repelem(fill_YY, 1, 2);
         fill_color = [0, 0, 153]/255;
-        for trange_idx=1:length(tranges)
-            trange = tranges{trange_idx};
+        for trange_idx=1:length(new_tranges)
+            trange = new_tranges{trange_idx};
             fill_XX = [trange(1) trange(2)];
             XX = [fill_XX, fliplr(fill_XX)];
             h = fill(XX, YY, fill_color);
@@ -295,7 +330,7 @@ function caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1)
         set(gca,'box','off')
 
         % Make a legend
-        legend('405 nm','465 nm','T1', 'T2', 'AutoUpdate', 'off');
+        legend('405 nm','465 nm','AutoUpdate', 'off');
 
 
         % airPLS baseline plots
@@ -387,7 +422,7 @@ function caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1)
         % Save .fig and .pdf
         savefig(f, [datafilename '_trialPlot.fig'])
         set(gcf, 'PaperPositionMode', 'auto', 'renderer','Painters');
-        print(gcf, '-painters', '-dpdf', '-r300', [datafilename '_recordingPlot'], '-fillpage')
+        print(gcf, '-painters', '-dpdf', '-r300', [datafilename '_trialPlot'], '-fillpage')
 
         %Save configuration file
         configfilename  = fullfile(cur_savedir,'config.mat');
@@ -408,4 +443,45 @@ function caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1)
         sig = interp1(1:length(sig), sig, linspace(1,length(sig), length(sig)*n_points + 1));
         sig = sig';
     end
+end
+
+function new_tranges = select_tranges_from_plot(time_vec, y_405, y_465)
+    global color_405 color_465
+    new_tranges = {};
+    % Plot raw data
+    temp_f = gcf;
+    set(temp_f, 'Position', get(0, 'Screensize'));
+    set(temp_f, 'KeyPressFcn', @myKeyPressFcn);
+    hold on;
+    plot(time_vec, y_405, 'color', color_405);
+    plot(time_vec, y_465, 'color', color_465);
+    fill_YY = [min([y_465; y_405]), max([y_465; y_405])];
+    YY = repelem(fill_YY, 1, 2);
+    
+
+    selection_complete = 0;
+    loop_idx = 1;
+    while ~selection_complete
+        [cur_trange, ~] = ginput(2);
+        
+        if length(cur_trange) == 2
+            sort(cur_trange);
+            if cur_trange(2) > max(time_vec)
+                cur_trange(2) = Inf;
+            end
+            fill_color = rand(1,3);
+            
+            fill_XX = [cur_trange(1) cur_trange(2)];
+            XX = [fill_XX, fliplr(fill_XX)];
+            h = fill(XX, YY, fill_color);
+            % Choose a number between 0 (invisible) and 1 (opaque) for facealpha.  
+            set(h,'facealpha',.05,'edgecolor','none')
+            new_tranges{end+1} = cur_trange';
+            loop_idx = loop_idx + 1;
+        else
+            selection_complete = 1;
+        end
+        
+    end
+    close(temp_f)
 end
