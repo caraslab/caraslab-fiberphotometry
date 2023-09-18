@@ -2,9 +2,6 @@ function caraslab_reformat_synapse_FP_data(Tankdir,Savedir,sel)
 %epData = caras_lab_reformat_FP_synapse_data(Tankdir,Savedir,sel);
 %   Function to reformat and save ephys data from TDT.
 %
-%   FIRST you must manually copy the .sev files from RS4 data streamer into
-%   the appropriate TDT tank block.
-%
 %   Input variables:
 %       Tankdir:    path to tank directory
 %
@@ -17,13 +14,11 @@ function caraslab_reformat_synapse_FP_data(Tankdir,Savedir,sel)
 %  
 %   Uses TDTbin2mat to reformat tank data to a matlab struct. 
 %   Two files are saved:    
-%       (1) A -mat file containing an MxN matrix of raw voltages, where 
-%               M = the number of channels
-%               N = the number of samples
+%       (1) A -csv file containing the raw photometry data, including 465
+%       and 405 nm channels and a Time column
 %
 %       (2) A -info file containing supporting information, including
-%               sampling rate, epocs, and timing
-%       
+%               sampling rate and epocs
 %
 %   Written by ML Caras Mar 22, 2019 
 %   patched by M Macedo-Lima 9/8/20
