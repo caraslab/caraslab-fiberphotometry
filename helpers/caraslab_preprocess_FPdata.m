@@ -3,7 +3,7 @@ function caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1, select_tran
     % 1. Low-pass filter
     % 2. Auto-detect LED onset by derivative or prompt user to select
     % ranges
-    % 3. airPLS algorithm to minimize photobleaching decay
+    % 3. airPLS algorithm to flatten photobleaching decay
     % 4. Fit 405 onto 465 and output df/f
     % 5. Saves a filename_dff.csv file
     
