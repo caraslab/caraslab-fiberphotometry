@@ -15,8 +15,8 @@ end
 
 
 % Create data analysis folders in parent directory
-full_path_split = split(Savedir, "/");
-parent_path = strjoin(full_path_split(1:end-1), "/");
+full_path_split = split(Savedir, filesep);
+parent_path = strjoin(full_path_split(1:end-1), filesep);
 mkdir(fullfile(parent_path, 'Data'));
 
 behavioralPerformance_path = fullfile(parent_path, 'Data', 'Behavioral performance');
