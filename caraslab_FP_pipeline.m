@@ -26,11 +26,11 @@
 %   will be prompted to select folders. Multiple folders can be selected
 %   using Ctrl or Shift
 
-Behaviordir = '/mnt/CL_4TB_2/Matt/Fiber photometry';
+Behaviordir = 'G:\My Drive\Documents\MATLAB projects\Photometry processing preview\matlab_data_files';
 
-Tankdir = '/mnt/CL_4TB_2/Matt/Fiber photometry/ACx-AAVrg-GCaMP8s_OFC-VO-fiber/SUBJ-ID-342-220420-140053';
+Tankdir = 'G:\My Drive\Documents\MATLAB projects\Photometry processing preview\temp_tank\SUBJ-ID-639-231130-132642';
 
-Savedir =  Tankdir;
+Savedir =  'G:\My Drive\Documents\MATLAB projects\Photometry processing preview\processed\SUBJ-ID-639-231130-132642';
 
 subtract_405 = 1;
 
@@ -70,7 +70,7 @@ caraslab_reformat_synapse_FP_data(Tankdir,Savedir,sel);
 % IMPORTANT: organize your behavior files into subfolders to be analyzed together , e.g.
 % shockTraining_pre, shockTraining_active, psychTesting_active, psychTesting_muscimol etc
 % select those folders when prompted (you can select multiple folders)
-caraslab_behav_pipeline(Savedir, Behaviordir, 'synapse');
+caraslab_behav_pipeline(Savedir, Behaviordir, 'synapse_1IFC');
 
 %% 4. REMOVE ARTIFACTS AND FILTER
 % This function takes extracted photometry signals and processes them in
@@ -90,6 +90,8 @@ guess_t1 =1;  % If guess_t1=1, previous T1 identification saved in config will n
 select_trange = 1;  % Prompt user for selecting time range for analysis
 caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1, select_trange, subtract_405)
 
+%%
+caraslab_get1IFCTrialData_FPdata(Savedir, sel)
 
 %% Code below is specific to Caras Lab aversive AM detection paradigm
 %% 5. Output timestamped waves and AUCs

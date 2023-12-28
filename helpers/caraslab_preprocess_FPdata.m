@@ -374,19 +374,72 @@ function caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1, select_tran
 
         % 405-subtracted plot
         subplot(4, 1, 4)
+
         % Add AM trial events
-        tt0_events = epData.epocs.TTyp.onset(epData.epocs.TTyp.data == 0);
-        fill_YY = [min(signal_main_sub), max(signal_main_sub)];
-        YY = repelem(fill_YY, 1, 2);
-        fill_color = [163, 163, 194]/255;
-        hold on;
-        for event_idx=1:length(tt0_events)
-            fill_XX = [tt0_events(event_idx) tt0_events(event_idx)+1];
-            XX = [fill_XX, fliplr(fill_XX)];
-            h = fill(XX, YY, fill_color);
-            % Choose a number between 0 (invisible) and 1 (opaque) for facealpha.  
-            set(h,'facealpha',.5,'edgecolor','none')
+        try
+            tt0_events = epData.epocs.TTyp.onset(epData.epocs.TTyp.data == 0);
+            fill_YY = [min(signal_main_sub), max(signal_main_sub)];
+            YY = repelem(fill_YY, 1, 2);
+            fill_color = [163, 163, 194]/255;
+            hold on;
+            for event_idx=1:length(tt0_events)
+                fill_XX = [tt0_events(event_idx) tt0_events(event_idx)+1];
+                XX = [fill_XX, fliplr(fill_XX)];
+                h = fill(XX, YY, fill_color);
+                % Choose a number between 0 (invisible) and 1 (opaque) for facealpha.  
+                set(h,'facealpha',.5,'edgecolor','none')
+            end
+        catch ME
+            if strcmp(ME.identifier, 'MATLAB:nonExistentField')
+                tt0_events = epData.epocs.STTL.onset;
+                fill_YY = [min(signal_main_sub), max(signal_main_sub)];
+                YY = repelem(fill_YY, 1, 2);
+                fill_color = [163, 163, 194]/255;
+                hold on;
+                for event_idx=1:length(tt0_events)
+                    fill_XX = [tt0_events(event_idx) tt0_events(event_idx)+1];
+                    XX = [fill_XX, fliplr(fill_XX)];
+                    h = fill(XX, YY, fill_color);
+                    % Choose a number between 0 (invisible) and 1 (opaque) for facealpha.  
+                    set(h,'facealpha',.5,'edgecolor','none')
+                end
+                % Make a legend
+                legend('AM trial', 'AutoUpdate', 'off');
+                
+                % L trough
+                tt0_events = epData.epocs.LTR_.onset;
+                fill_YY = [min(signal_main_sub), max(signal_main_sub)];
+                YY = repelem(fill_YY, 1, 2);
+                fill_color = [184, 51, 106]/255;
+                hold on;
+                for event_idx=1:length(tt0_events)
+                    fill_XX = [tt0_events(event_idx) tt0_events(event_idx)+1];
+                    XX = [fill_XX, fliplr(fill_XX)];
+                    h = fill(XX, YY, fill_color);
+                    % Choose a number between 0 (invisible) and 1 (opaque) for facealpha.  
+                    set(h,'facealpha',.5,'edgecolor','none')
+                end
+                % Make a legend
+                legend('L trough', 'AutoUpdate', 'off');
+                
+                % R trough
+                tt0_events = epData.epocs.RTR_.onset;
+                fill_YY = [min(signal_main_sub), max(signal_main_sub)];
+                YY = repelem(fill_YY, 1, 2);
+                fill_color = [66, 122, 161]/255;
+                hold on;
+                for event_idx=1:length(tt0_events)
+                    fill_XX = [tt0_events(event_idx) tt0_events(event_idx)+1];
+                    XX = [fill_XX, fliplr(fill_XX)];
+                    h = fill(XX, YY, fill_color);
+                    % Choose a number between 0 (invisible) and 1 (opaque) for facealpha.  
+                    set(h,'facealpha',.5,'edgecolor','none')
+                end
+                % Make a legend
+                legend('R trough', 'AutoUpdate', 'off');
+            end
         end
+
 
         % Plot data on top
         plot(time_vec_offset, signal_main_sub, 'color', color_main, 'LineWidth', 1); 
