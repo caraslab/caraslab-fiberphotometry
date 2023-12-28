@@ -32,7 +32,7 @@ Tankdir = 'G:\My Drive\Documents\MATLAB projects\Photometry processing preview\t
 
 Savedir =  'G:\My Drive\Documents\MATLAB projects\Photometry processing preview\processed\SUBJ-ID-639-231130-132642';
 
-subtract_405 = 0;
+subtract_405 = 1;
 
 sel = 1;  % Select subfolders; 0 will run all subfolders
 
