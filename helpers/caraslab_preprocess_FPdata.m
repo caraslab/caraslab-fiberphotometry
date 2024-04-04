@@ -228,7 +228,8 @@ function caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1, select_tran
         N = 1;
         while ~fit_success && N < 100
             [fit_result, ~, fit_success] = fit(signal_isosbestic_offset_pls, signal_main_offset_pls, ...
-                fittype('poly1'),'Robust','on', 'lower', [0 -Inf], 'Normalize', 'on');
+                fittype('poly1'),'Robust','off', 'lower', [0 -Inf], 'Normalize', 'off');
+            
             fit_success = fit_success.exitflag;
 
             if ~fit_success
@@ -252,6 +253,11 @@ function caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1, select_tran
         end
         
         Y_fit_all = fit_result(signal_isosbestic_offset_pls);
+
+        % Simple fitting; similar to GuPPY
+%         fit_result = polyfit(signal_isosbestic_offset_pls, signal_main_offset_pls, 1);
+        
+%         Y_fit_all = (fit_result(1)*signal_isosbestic_offset_pls)+fit_result(2);
         
         % Upsample everything back
         signal_main_offset = upsample_sig(signal_main_offset, N);
@@ -391,7 +397,11 @@ function caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1, select_tran
             end
         catch ME
             if strcmp(ME.identifier, 'MATLAB:nonExistentField')
-                tt0_events = epData.epocs.STTL.onset;
+                if isfield(epData.epocs, 'STTL')
+                    tt0_events = epData.epocs.STTL.onset;
+                elseif isfield(epData.epocs, 'STL_')
+                    tt0_events = epData.epocs.STL_.onset;
+                end
                 fill_YY = [min(signal_main_sub), max(signal_main_sub)];
                 YY = repelem(fill_YY, 1, 2);
                 fill_color = [163, 163, 194]/255;

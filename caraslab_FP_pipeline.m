@@ -26,11 +26,11 @@
 %   will be prompted to select folders. Multiple folders can be selected
 %   using Ctrl or Shift
 
-Behaviordir = 'G:\My Drive\Documents\MATLAB projects\Photometry processing preview\matlab_data_files';
+Behaviordir = '/mnt/CL_8TB_3/Matheus/VTA_FP_1IFC/TH-Cre_flex-GCaMP8m/matlab_data_files';
 
-Tankdir = 'G:\My Drive\Documents\MATLAB projects\Photometry processing preview\temp_tank\SUBJ-ID-639-231130-132642';
+Tankdir = '/mnt/CL_8TB_3/temp_tank/SUBJ-ID-684-240326-150020';
 
-Savedir =  'G:\My Drive\Documents\MATLAB projects\Photometry processing preview\processed\SUBJ-ID-639-231130-132642';
+Savedir =  '/mnt/CL_8TB_3/Matheus/VTA_FP_1IFC/TH-Cre_flex-GCaMP8m/SUBJ-ID-684-240326-150020';
 
 subtract_405 = 1;
 
