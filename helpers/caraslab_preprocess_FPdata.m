@@ -228,7 +228,7 @@ function caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1, select_tran
         N = 1;
         while ~fit_success && N < 100
             [fit_result, ~, fit_success] = fit(signal_isosbestic_offset_pls, signal_main_offset_pls, ...
-                fittype('poly1'),'Robust','off', 'lower', [0 -Inf], 'Normalize', 'off');
+                fittype('poly1'),'Robust','on', 'lower', [0 -Inf], 'Normalize', 'off');
             
             fit_success = fit_success.exitflag;
 
