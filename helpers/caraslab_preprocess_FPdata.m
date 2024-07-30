@@ -155,9 +155,15 @@ function caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1, select_tran
                 T1_idx = round(cur_trange(1)*fs, 0);
                 T2_idx = round(cur_trange(2)*fs, 0);
                 % Fill signals with valid input
-                signal_main_offset = [signal_main_offset; signal_main(T1_idx:T2_idx)];
-                signal_isosbestic_offset = [signal_isosbestic_offset; signal_isosbestic(T1_idx:T2_idx)];
-                time_vec_offset = [time_vec_offset; time_vec(T1_idx:T2_idx)];
+                if ~isinf(T2_idx)
+                    signal_main_offset = [signal_main_offset; signal_main(T1_idx:T2_idx)];
+                    signal_isosbestic_offset = [signal_isosbestic_offset; signal_isosbestic(T1_idx:T2_idx)];
+                    time_vec_offset = [time_vec_offset; time_vec(T1_idx:T2_idx)];
+                else
+                    signal_main_offset = [signal_main_offset; signal_main(T1_idx:end)];
+                    signal_isosbestic_offset = [signal_isosbestic_offset; signal_isosbestic(T1_idx:end)];
+                    time_vec_offset = [time_vec_offset; time_vec(T1_idx:end)];
+                end
             end
         else
             for trange_idx=1:length(tranges)
@@ -206,7 +212,7 @@ function caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1, select_tran
         %% airPLS algorithm to correct baseline
         % Baseline correction using adaptive iteratively reweighted Penalized Least Squares;		
         % Default parameters seem to work well: num2cell([10e8, 1, 0.1, 0.5, 50])
-        airPLSconfig.input = num2cell([10e8, 1, 0.1, 0.5, 50]);
+        airPLSconfig.input = num2cell([10e7, 1, 0.1, 0.5, 50]);
         
         [signal_main_offset_pls,signal_main_offset_base]= airPLS(signal_main_offset', airPLSconfig.input{:});
         signal_main_offset_pls = signal_main_offset_pls';

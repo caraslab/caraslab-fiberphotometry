@@ -26,13 +26,14 @@
 %   will be prompted to select folders. Multiple folders can be selected
 %   using Ctrl or Shift
 
-Behaviordir = '/mnt/CL_8TB_3/Matheus/VTA_FP_1IFC/TH-Cre_flex-GCaMP8m/matlab_data_files';
+Behaviordir = 'path/matlab_data_files';
+% % 
+% Tankdir = '/mnt/CL_8TB_3/temp_tank/SUBJ-ID-683-240404-133151';
+% Savedir =  '/mnt/CL_8TB_3/Matheus/Fiber photometry/TH-Cre_flex-GCaMP8_aversiveAM/SUBJ-ID-683-240404-133151';
+% 
+Tankdir = 'path/temp_tank/SUBJ-ID-XXX-XXXXXX-XXXXXX';
+Savedir =  'path/SUBJ-ID-XXX-XXXXXX-XXXXXX';
 
-Tankdir = '/mnt/CL_8TB_3/temp_tank/SUBJ-ID-683-240404-133151';
-Savedir =  '/mnt/CL_8TB_3/Matheus/VTA_FP_1IFC/TH-Cre_flex-GCaMP8m/SUBJ-ID-683-240404-133151';
-
-% Tankdir = '/mnt/CL_8TB_3/temp_tank/SUBJ-ID-684-240326-150020';
-% Savedir =  '/mnt/CL_8TB_3/Matheus/VTA_FP_1IFC/TH-Cre_flex-GCaMP8m/SUBJ-ID-684-240326-150020';
 
 subtract_405 = 1;
 
@@ -72,7 +73,11 @@ caraslab_reformat_synapse_FP_data(Tankdir,Savedir,sel);
 % IMPORTANT: organize your behavior files into subfolders to be analyzed together , e.g.
 % shockTraining_pre, shockTraining_active, psychTesting_active, psychTesting_muscimol etc
 % select those folders when prompted (you can select multiple folders)
-caraslab_behav_pipeline(Savedir, Behaviordir, 'synapse_1IFC');
+
+% experiment_type: optional: 'synapse', 'intan', 'optoBehavior', '1IFC', 'synapse_1IFC'
+% All types without the 1IFC tag assume aversive AM detection
+experiment_type = 'synapse';
+caraslab_behav_pipeline(Savedir, Behaviordir, experiment_type);
 
 %% 4. REMOVE ARTIFACTS AND FILTER
 % This function takes extracted photometry signals and processes them in
@@ -88,8 +93,8 @@ caraslab_behav_pipeline(Savedir, Behaviordir, 'synapse_1IFC');
 % If T1=0, automatic detection of LED onset will be performed; T2=Inf will
 % read from T1 until the end
 tranges = {[0 Inf]};
-guess_t1 =1;  % If guess_t1=1, previous T1 identification saved in config will not be assumed
-select_trange = 0;  % Prompt user for selecting time range for analysis
+guess_t1 = 1;  % If guess_t1=1, previous T1 identification saved in config will not be assumed
+select_trange = 1;  % Prompt user for selecting time range for analysis
 caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1, select_trange, subtract_405)
 
 %%
