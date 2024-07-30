@@ -211,8 +211,8 @@ function caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1, select_tran
         
         %% airPLS algorithm to correct baseline
         % Baseline correction using adaptive iteratively reweighted Penalized Least Squares;		
-        % Default parameters seem to work well: num2cell([10e8, 1, 0.1, 0.5, 50])
-        airPLSconfig.input = num2cell([10e7, 1, 0.1, 0.5, 50]);
+        % Default parameters seem to work well for the most part: num2cell([10e8, 1, 0.1, 0.5, 50])
+        airPLSconfig.input = num2cell([10e8, 1, 0.1, 0.5, 50]);
         
         [signal_main_offset_pls,signal_main_offset_base]= airPLS(signal_main_offset', airPLSconfig.input{:});
         signal_main_offset_pls = signal_main_offset_pls';
