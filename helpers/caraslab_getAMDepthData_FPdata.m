@@ -6,8 +6,8 @@ function caraslab_getAMDepthData_FPdata(Savedir, sel, only_response)
 % epocs_names = {{'TTyp', 0, 'onset'}};
 
 %% Some plotting parameters
-plot_window = [-2, 6];
-baseline_window = [-2, -1];
+plot_window = [-0.25, 4];
+baseline_window = [-0.25, 0];
 
 %%
 
@@ -68,7 +68,7 @@ for dummy_idx = 1:numel(datafolders)
     auc_df = readtable(fullpath);  
     
     % Load behavioral file
-    cur_datafiledir = dir(fullfile(cur_savedir, 'CSV files', ['*' cur_path.name '_trialInfo.csv']));
+    cur_datafiledir = dir(fullfile(cur_savedir, 'Info files', ['*' cur_path.name '_trialInfo.csv']));
     fullpath = fullfile(cur_datafiledir.folder, cur_datafiledir.name);
     trialInfo_df = readtable(fullpath);      
     trialInfo_AMtrials = trialInfo_df(trialInfo_df.TrialType == 0,:);
@@ -76,6 +76,10 @@ for dummy_idx = 1:numel(datafolders)
     % Separate trials by AM depth
     all_AMdepth = sort(unique(trialInfo_AMtrials.AMdepth(trialInfo_AMtrials.Reminder == 0)));
     log_AMdepth = round(make_stim_log(all_AMdepth));
+    
+    % For debugging
+    syn_am_trials_filter = epData.epocs.TTyp.data == 0;
+    syn_am_trials_onset = epData.epocs.TTyp.onset(syn_am_trials_filter);
     
     % For each AM depth
     color_resp = [0, 128, 0]/255;
@@ -94,16 +98,16 @@ for dummy_idx = 1:numel(datafolders)
     for AMdepth_ind=1:length(all_AMdepth)
         AMdepth = all_AMdepth(AMdepth_ind);
 
-        % Filter current trials
-
-        
+        % Filter current trials        
         if strcmp(only_response, 'hit')
-            cur_ind = (trialInfo_AMtrials.AMdepth == AMdepth) & (trialInfo_AMtrials.Hit == 1);
+            cur_ind = (trialInfo_AMtrials.AMdepth == AMdepth) & (trialInfo_AMtrials.Hit == 1) & (trialInfo_AMtrials.Reminder == 0);
         elseif strcmp(only_response, 'miss')
-            cur_ind = (trialInfo_AMtrials.AMdepth == AMdepth) & (trialInfo_AMtrials.Miss == 1);
+            cur_ind = (trialInfo_AMtrials.AMdepth == AMdepth) & (trialInfo_AMtrials.Miss == 1) & (trialInfo_AMtrials.Reminder == 0);
         else
             cur_ind = trialInfo_AMtrials.AMdepth == AMdepth;
         end
+        
+        cur_onsets = syn_am_trials_onset(cur_ind);
         
         % Not sure how this is possible but it has happened...
         if length(cur_ind) > size(dffzscore_df, 1)

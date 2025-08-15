@@ -14,10 +14,10 @@
 %   into folders named: 
 %   shock_training, psych_testing, pre_passive, post_passive
 
-% Tankdir: Where your TDT tank raw files are; This path should be a
+% input_dir: Where your TDT tank raw files are; This path should be a
 %   subject's main folder containing multiple sessions inside
 
-% Savedir: Where you wish to save the processed files
+% output_dir: Where you wish to save the processed files
 
 % subtract_405: whether your 405 channel is important for removing
 % movement artifacts
@@ -26,14 +26,22 @@
 %   will be prompted to select folders. Multiple folders can be selected
 %   using Ctrl or Shift
 
-Behaviordir = 'path/matlab_data_files';
-% % 
-% Tankdir = '/mnt/CL_8TB_3/temp_tank/SUBJ-ID-683-240404-133151';
-% Savedir =  '/mnt/CL_8TB_3/Matheus/Fiber photometry/TH-Cre_flex-GCaMP8_aversiveAM/SUBJ-ID-683-240404-133151';
-% 
-Tankdir = 'path/temp_tank/SUBJ-ID-XXX-XXXXXX-XXXXXX';
-Savedir =  'path/SUBJ-ID-XXX-XXXXXX-XXXXXX';
+% % % 
+clear;
 
+% Set paths
+behavior_dir = '/path1/matlab_data_files';
+root_tank_dir = '/path2';  % Input 
+output_dir = '/path3';  % Output
+
+% Uncomment one at a time
+% tank_id = 'SUBJ-ID-718-240605-094128';
+% tank_id = 'SUBJ-ID-719-240605-100955';
+% tank_id = 'SUBJ-ID-938-250428-175742';
+tank_id = 'SUBJ-ID-1011-250710-164124';
+
+input_dir = fullfile(root_tank_dir, tank_id);
+output_dir =  fullfile(output_dir, tank_id); 
 
 subtract_405 = 1;
 
@@ -43,9 +51,9 @@ sel = 1;  % Select subfolders; 0 will run all subfolders
 %   Function to reformat and save data from TDT.
 %
 %   Input variables:
-%       Tankdir:    path to tank directory
+%       input_dir:    path to tank directory
 %
-%       Savedir:    path to directory where -mat and -csv files will be saved
+%       output_dir:    path to directory where -mat and -csv files will be saved
 %
 %       sel:        if 0 or omitted, program will cycle through all BLOCKS
 %                   in the tank directory. 
@@ -59,8 +67,10 @@ sel = 1;  % Select subfolders; 0 will run all subfolders
 %
 %       (2) A -info file containing supporting information, including
 %               sampling rate and epocs
-
-caraslab_reformat_synapse_FP_data(Tankdir,Savedir,sel);
+CH465_NAME = 'x465A';
+CH405_NAME = 'x405A';  % Rig 1
+% CH405_NAME = 'x415A';  % Rig 3
+caraslab_reformat_synapse_FP_data(input_dir,output_dir,sel, CH465_NAME, CH405_NAME);
 
 %% 3. Output timestamps info
 % This pipeline takes ePsych .mat behavioral files, combines and analyzes them and
@@ -77,7 +87,8 @@ caraslab_reformat_synapse_FP_data(Tankdir,Savedir,sel);
 % experiment_type: optional: 'synapse', 'intan', 'optoBehavior', '1IFC', 'synapse_1IFC'
 % All types without the 1IFC tag assume aversive AM detection
 experiment_type = 'synapse';
-caraslab_behav_pipeline(Savedir, Behaviordir, experiment_type);
+caraslab_behav_pipeline(output_dir, behavior_dir, 'experiment_type', experiment_type);
+
 
 %% 4. REMOVE ARTIFACTS AND FILTER
 % This function takes extracted photometry signals and processes them in
@@ -95,23 +106,25 @@ caraslab_behav_pipeline(Savedir, Behaviordir, experiment_type);
 tranges = {[0 Inf]};
 guess_t1 = 1;  % If guess_t1=1, previous T1 identification saved in config will not be assumed
 select_trange = 1;  % Prompt user for selecting time range for analysis
-caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1, select_trange, subtract_405)
+do_airPLS = 0;
+caraslab_preprocess_FPdata(output_dir, sel, tranges, guess_t1, select_trange, subtract_405, do_airPLS)
 
-%%
-caraslab_get1IFCTrialData_FPdata(Savedir, sel)
+%% Steps 5-7 are optional and for quick visualization only and will not
 
-%% Code below is specific to Caras Lab aversive AM detection paradigm
-%% 5. Output timestamped waves and AUCs
-caraslab_getTrialData_FPdata(Savedir, sel)
+%% 5. Output timestamped waves and AUCs for 1IFC protocol
+caraslab_get1IFCTrialData_FPdata(output_dir, sel)
 
-%% 6. Plot separate responses by AMdepth
-only_response = {'all', 'hit', 'miss'};  % all, miss, hit
+%% 6. Output timestamped waves and AUCs for AversiveAM protocol
+caraslab_getTrialData_FPdata(output_dir, sel)
+
+%% 7. Plot separate responses by AMdepth
+only_response = {'all'};  % all, miss, hit
 
 for resp_idx=1:length(only_response)
     cur_resp = only_response{resp_idx};
-    caraslab_getAMDepthData_FPdata(Savedir, sel, cur_resp)
+    caraslab_getAMDepthData_FPdata(output_dir, sel, cur_resp)
 end
 
 
-%% Compile data
-compile_FPdata_for_analyses(Savedir)
+%% 8. Compile data for Python pipeline
+compile_FPdata_for_analyses(output_dir)

@@ -25,8 +25,8 @@ mkdir(behavioralPerformance_path);
 keyFiles_path = fullfile(parent_path, 'Data', 'Key files');
 mkdir(keyFiles_path);
 
-amTrialdPrime_path = fullfile(parent_path, 'Data', 'Output', 'AMTrial neural d-prime');
-mkdir(amTrialdPrime_path);
+% amTrialdPrime_path = fullfile(parent_path, 'Data', 'Output', 'AMTrial neural d-prime');
+% mkdir(amTrialdPrime_path);
 
 wholeSignal_path = fullfile(parent_path, 'Data', 'Whole session signal');
 mkdir(wholeSignal_path);
@@ -37,14 +37,14 @@ for i = 1:numel(datafolders)
         cur_savedir = fullfile(Savedir, cur_path.name);
         
         % Copy Key files
-        filedirs = dir(fullfile(cur_savedir, 'CSV files', '*trialInfo.csv'));
+        filedirs = dir(fullfile(cur_savedir, 'Info files', '*trialInfo.csv'));
         for file_idx=1:length(filedirs)
             if ~isempty(filedirs)
                 cur_filedir = filedirs(file_idx);
                 copyfile(fullfile(cur_filedir.folder, cur_filedir.name), fullfile(keyFiles_path, cur_filedir.name));
             end
         end
-        filedirs = dir(fullfile(cur_savedir, 'CSV files', '*spoutTimestamps.csv'));
+        filedirs = dir(fullfile(cur_savedir, 'Info files', '*spoutTimestamps.csv'));
         for file_idx=1:length(filedirs)
             if ~isempty(filedirs)
                 cur_filedir = filedirs(file_idx);
@@ -52,14 +52,14 @@ for i = 1:numel(datafolders)
             end
         end
         
-        % Copy AMTrial neural d-prime
-        filedirs = dir(fullfile(cur_savedir, '*_neuralDprime.csv'));
-        for file_idx=1:length(filedirs)
-            if ~isempty(filedirs)
-                cur_filedir = filedirs(file_idx);
-                copyfile(fullfile(cur_filedir.folder, cur_filedir.name), fullfile(amTrialdPrime_path, cur_filedir.name));
-            end
-        end 
+        % % Copy AMTrial neural d-prime
+        % filedirs = dir(fullfile(cur_savedir, '*_neuralDprime.csv'));
+        % for file_idx=1:length(filedirs)
+        %     if ~isempty(filedirs)
+        %         cur_filedir = filedirs(file_idx);
+        %         copyfile(fullfile(cur_filedir.folder, cur_filedir.name), fullfile(amTrialdPrime_path, cur_filedir.name));
+        %     end
+        % end 
         
         % Copy Whole session dff z-score
         filedirs = dir(fullfile(cur_savedir, '*_dff.csv'));

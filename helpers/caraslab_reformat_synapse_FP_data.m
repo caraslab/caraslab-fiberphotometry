@@ -1,4 +1,4 @@
-function caraslab_reformat_synapse_FP_data(Tankdir,Savedir,sel)
+function caraslab_reformat_synapse_FP_data(Tankdir,Savedir,sel, CH465_NAME, CH405_NAME)
 %epData = caras_lab_reformat_FP_synapse_data(Tankdir,Savedir,sel);
 %   Function to reformat and save ephys data from TDT.
 %
@@ -22,10 +22,6 @@ function caraslab_reformat_synapse_FP_data(Tankdir,Savedir,sel)
 %
 %   Written by ML Caras Mar 22, 2019 
 %   patched by M Macedo-Lima 9/8/20
-
-%% tweak this if needed
-CH465_NAME = 'x465A';
-CH405_NAME = 'x405A';
 
 %%
 

@@ -1,4 +1,4 @@
-function caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1, select_trange, subtract_405)
+function caraslab_preprocess_FPdata(Savedir, sel, tranges, previous_trange, select_trange, subtract_405, do_airPLS)
     % This function takes fiber photometry csv files and employs in this order:
     % 1. Low-pass filter
     % 2. Auto-detect LED onset by derivative or prompt user to select
@@ -89,7 +89,7 @@ function caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1, select_tran
         % Create a configs variable to hold some info about the recording.
         % Optionally read a previously saved config to read info about T1 and
         % T2
-        if guess_t1
+        if ~previous_trange
             ops = struct();
         else
             %Load in configuration file (contains ops struct)
@@ -98,8 +98,8 @@ function caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1, select_tran
                 load(fullfile(cur_savedir, 'config.mat'));
             catch ME
                 if strcmp(ME.identifier, 'MATLAB:load:couldNotReadFile')
-                    fprintf('\n-mat file not found\n')
-                    continue
+                    fprintf('\nconfig file not found. Assuming new recording...\n')
+                    ops = struct();
                 else
                     fprintf(ME.identifier)
                     fprintf(ME.message)
@@ -125,164 +125,222 @@ function caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1, select_tran
         signal_isosbestic = cur_data.Ch405_mV;
         time_vec = cur_data.Time;
         
-        % 100-point zero-phase moving-mean filter
-        mov_mean_filter = 1/100*ones(100,1);
-        signal_main = filtfilt(mov_mean_filter, 1, signal_main);
-        signal_isosbestic = filtfilt(mov_mean_filter, 1, signal_isosbestic);
-
-        % Detect LED onset via second-derivative > 1 and eliminate everything
-        % from that point + 1/fs*10 s
-        % This was determined via visual inspection. Make sure to inspect!
-        % Check if T1 and T2 already exist
-        if ~guess_t1
-            if isfield(ops, 'tranges')
-                tranges = ops.tranges;
-            end
-        end
+        % % 100-point zero-phase moving-mean filter
+        % mov_mean_filter = 1/100*ones(100,1);
+        % signal_main = filtfilt(mov_mean_filter, 1, signal_main);
+        % signal_isosbestic = filtfilt(mov_mean_filter, 1, signal_isosbestic);
         
+        % New tweakable filter
+        fslow = 3;  % 3 Hz is recommended by Keevers and Bressel, 2025 but can be tweaked
+        signal_main = doublefilter_FPdata(signal_main, ops.fs, fslow);
+        signal_isosbestic = doublefilter_FPdata(signal_isosbestic, ops.fs, fslow);
+
         % Loop through the time ranges and eliminate data points outside of
         % them
         signal_main_offset = [];
         signal_isosbestic_offset = [];
         time_vec_offset = [];
-        new_tranges = {};
-        
-        if select_trange
-            new_tranges = select_tranges_from_plot(time_vec, signal_isosbestic, signal_main);
-            
-            for trange_idx=1:length(new_tranges)
-                cur_trange = new_tranges{trange_idx};
-                T1_idx = round(cur_trange(1)*fs, 0);
-                T2_idx = round(cur_trange(2)*fs, 0);
-                % Fill signals with valid input
-                if ~isinf(T2_idx)
-                    signal_main_offset = [signal_main_offset; signal_main(T1_idx:T2_idx)];
-                    signal_isosbestic_offset = [signal_isosbestic_offset; signal_isosbestic(T1_idx:T2_idx)];
-                    time_vec_offset = [time_vec_offset; time_vec(T1_idx:T2_idx)];
-                else
-                    signal_main_offset = [signal_main_offset; signal_main(T1_idx:end)];
-                    signal_isosbestic_offset = [signal_isosbestic_offset; signal_isosbestic(T1_idx:end)];
-                    time_vec_offset = [time_vec_offset; time_vec(T1_idx:end)];
+
+        % Grab tranges from ops
+        if previous_trange
+            if isfield(ops, 'tranges')
+                tranges = ops.tranges;
+                for trange_idx=1:length(tranges)
+                    cur_trange = tranges{trange_idx};
+                    % Previous version of the code allowed Inf values for
+                    % trange(2). Convert them here
+                    if isinf(cur_trange(2))
+                        cur_trange(2) = max(time_vec);
+                    end
+                    idx_slice = (time_vec >= cur_trange(1)) & (time_vec <= cur_trange(2));
+    
+                    % Fill signals with valid input
+                    signal_main_offset = [signal_main_offset; signal_main(idx_slice)];
+                    signal_isosbestic_offset = [signal_isosbestic_offset; signal_isosbestic(idx_slice)];
+                    time_vec_offset = [time_vec_offset; time_vec(idx_slice)];
+
+                    % Save new tranges for future use if needed
+                    tranges{trange_idx} = [cur_trange(1) cur_trange(2)];
                 end
+            else
+                fprintf('Previous time ranges not found in ops. Switching to manual selection...')
+                select_trange = 1;
+                previous_trange = 0;
             end
-        else
-            for trange_idx=1:length(tranges)
-                trange = tranges{trange_idx};
+        end
 
-                % Calculate first timestamp 
-                if trange(1) == 0 && guess_t1 == 1  
-                    diff_465 = diff(diff(signal_main));
-
-                    diff_mean = mean(diff_465);
-                    diff_std = std(diff_465);
-                    diff_thresh = diff_mean + 20*diff_std;
-
-                    % DEBUG
-    %                 figure;
-    %                 plot(diff_465);
-
-                    crossing = find(diff_465 > diff_thresh, 1, 'first');
-                    
-                    % Eliminate from start until crossing + fs*10
-                    T1_idx = round(crossing + fs*10);
-                else
-                    T1_idx = max([1, floor(trange(1)*fs)]);
+        % Select from plot manually and override what's in ops
+        if ~previous_trange  % Re-check here in case it's overridden 
+            if select_trange
+                tranges = select_tranges_from_plot(time_vec, signal_isosbestic, signal_main);
+                
+                for trange_idx=1:length(tranges)
+                    cur_trange = tranges{trange_idx};
+                    idx_slice = (time_vec >= cur_trange(1)) & (time_vec <= cur_trange(2));
+    
+                    % Fill signals with valid input
+                    signal_main_offset = [signal_main_offset; signal_main(idx_slice)];
+                    signal_isosbestic_offset = [signal_isosbestic_offset; signal_isosbestic(idx_slice)];
+                    time_vec_offset = [time_vec_offset; time_vec(idx_slice)];
+    
                 end
-
-                % Set T2 to whole recording if T2==Inf
-                if trange(2) == Inf
-                    T2_idx = length(time_vec);
-                else
-                    T2_idx = min(length(signal_main), ceil(trange(2)*fs));
+                % Or detect LED onset automatically; 
+                % Detect LED onset via second-derivative > 1 and eliminate everything
+                % from that point + 1/fs*10 s
+                % This was determined via visual inspection. Make sure to inspect!
+                % Check if T1 and T2 already exist
+                % NOTE: This is not set up to detect unplugging artifacts yet
+            else
+                for trange_idx=1:length(tranges)
+                    trange = tranges{trange_idx};
+    
+                    % Calculate first timestamp 
+                    if trange(1) == 0 && previous_trange == 1  
+                        diff_465 = diff(diff(signal_main));
+    
+                        diff_mean = mean(diff_465);
+                        diff_std = std(diff_465);
+                        diff_thresh = diff_mean + 20*diff_std;
+    
+                        % DEBUG
+        %                 figure;
+        %                 plot(diff_465);
+    
+                        crossing = find(diff_465 > diff_thresh, 1, 'first');
+                        
+                        % Eliminate from start until crossing + fs*10
+                        T1_idx = floor(crossing + fs*10);
+                    else
+                        T1_idx = max([1, floor(trange(1)*fs)]);
+                    end
+                    T1 = round(T1_idx/fs, 4);
+                    idx_slice = (time_vec >= T1);
+    
+                    % Fill signals with valid input
+                    signal_main_offset = [signal_main_offset; signal_main(idx_slice)];
+                    signal_isosbestic_offset = [signal_isosbestic_offset; signal_isosbestic(idx_slice)];
+                    time_vec_offset = [time_vec_offset; time_vec(idx_slice)];
+    
+                    % Save new tranges for future use if needed
+                    tranges{end+1} = [T1 max(time_vec)];
                 end
-
-                % Fill signals with valid input
-                signal_main_offset = [signal_main_offset; signal_main(T1_idx:T2_idx)];
-                signal_isosbestic_offset = [signal_isosbestic_offset; signal_isosbestic(T1_idx:T2_idx)];
-                time_vec_offset = [time_vec_offset; time_vec(T1_idx:T2_idx)];
-
-                % Save new tranges for future use if needed
-                new_tranges{end+1} = [T1_idx/fs T2_idx/fs];
             end
         end
 
         % Update ops
-        ops.tranges = new_tranges;
+        ops.tranges = tranges;
         
         %% airPLS algorithm to correct baseline
         % Baseline correction using adaptive iteratively reweighted Penalized Least Squares;		
-        % Default parameters seem to work well for the most part: num2cell([10e8, 1, 0.1, 0.5, 50])
-        airPLSconfig.input = num2cell([10e8, 1, 0.1, 0.5, 50]);
+        % These parameters seem to work well for the most part: num2cell([10e8, 1, 0.1, 0.5, 50])
+        % TODO: run airPLS separately for each continuous chunk of
+        % recording, i.e., stop it during large artifacts
+        if do_airPLS
+            airPLSconfig.input = num2cell([10e7, 1, 0.1, 0.5, 50]);
+            signal_main_offset_pls = [];
+            signal_main_offset_base = [];
+            signal_isosbestic_offset_pls = [];
+            signal_isosbestic_offset_base = [];
+            for i=1:length(ops.tranges)
+                idx_slice = (time_vec_offset >= ops.tranges{i}(1)) & (time_vec_offset <= ops.tranges{i}(2));
+
+                cur_signal_main = signal_main_offset(idx_slice);
+                cur_signal_isosbestic = signal_isosbestic_offset(idx_slice);
+
+                % 465
+                [temp_offset_pls, temp_offset_base]= airPLS(cur_signal_main', airPLSconfig.input{:});
+                signal_main_offset_pls = [signal_main_offset_pls; temp_offset_pls'];
+                signal_main_offset_base = [signal_main_offset_base; temp_offset_base'];
+                
+                % Isosbestic
+                [temp_offset_pls, temp_offset_base]= airPLS(cur_signal_isosbestic', airPLSconfig.input{:});
+                signal_isosbestic_offset_pls = [signal_isosbestic_offset_pls; temp_offset_pls'];
+                signal_isosbestic_offset_base = [signal_isosbestic_offset_base; temp_offset_base'];
+            end
+        else
+            signal_main_offset_pls = signal_main_offset;
+            signal_main_offset_base = zeros(size(signal_main_offset_pls));
+
+            signal_isosbestic_offset_pls = signal_isosbestic_offset;
+            signal_isosbestic_offset_base = zeros(size(signal_isosbestic_offset_pls));
+        end
         
-        [signal_main_offset_pls,signal_main_offset_base]= airPLS(signal_main_offset', airPLSconfig.input{:});
-        signal_main_offset_pls = signal_main_offset_pls';
-        signal_main_offset_base = signal_main_offset_base';
-
-        [signal_isosbestic_offset_pls,signal_isosbestic_offset_base]= airPLS(signal_isosbestic_offset', airPLSconfig.input{:});
-        signal_isosbestic_offset_pls = signal_isosbestic_offset_pls';
-        signal_isosbestic_offset_base = signal_isosbestic_offset_base';
-
         %% Standardize signals and regress to extract df/f
         signal_main_offset_pls = (signal_main_offset_pls - median(signal_main_offset_pls)) / std(signal_main_offset_pls);
         signal_isosbestic_offset_pls = (signal_isosbestic_offset_pls - median(signal_isosbestic_offset_pls)) / std(signal_isosbestic_offset_pls);
 
-        % Non-negative robust linear regression
+        %% Null-Z normalization
+        % Recommended by Keevers and Bressel, 2025 for IRLS, but doesn't
+        % change much
+        % signal_main_offset_pls = signal_main_offset_pls ./ sqrt(mean(signal_main_offset_pls.^2));
+        % signal_isosbestic_offset_pls = signal_isosbestic_offset_pls ./ sqrt(mean(signal_isosbestic_offset_pls.^2));
+
+        %% Non-negative robust linear regression
         % If it fails, downsampling helps. Keep track of how many
         % downsampling points were required for the fit to work, then
         % reupsample everything by the same factor
-        fit_success = 0;
-        N = 1;
-        while ~fit_success && N < 100
-            [fit_result, ~, fit_success] = fit(signal_isosbestic_offset_pls, signal_main_offset_pls, ...
-                fittype('poly1'),'Robust','on', 'lower', [0 -Inf], 'Normalize', 'off');
-            
-            fit_success = fit_success.exitflag;
+%         fit_success = 0;
+%         N = 1;
+%         while ~fit_success && N < 100
+%             [fit_result, ~, fit_success] = fit(signal_isosbestic_offset_pls, signal_main_offset_pls, ...
+%                 fittype('poly1'),'Robust','off', 'lower', [0 -Inf], 'Normalize', 'off');
+% 
+%             fit_success = fit_success.exitflag;
+% 
+%             if ~fit_success
+%                 signal_main_offset = downsample_sig(signal_main_offset, N);
+%                 signal_isosbestic_offset = downsample_sig(signal_isosbestic_offset, N);  
+%                 signal_main_offset_pls = downsample_sig(signal_main_offset_pls, N);
+%                 signal_isosbestic_offset_pls = downsample_sig(signal_isosbestic_offset_pls, N);  
+%                 signal_main_offset_base = downsample_sig(signal_main_offset_base, N);
+%                 signal_isosbestic_offset_base = downsample_sig(signal_isosbestic_offset_base, N);  
+%                 time_vec_offset = downsample_sig(time_vec_offset, N);
+%                 N = N+1;
+%             end
+%         end
+% 
+%         if N == 100
+%             % If fit fails after 100 attempts, you should make sure both of
+%             % your signals (465 and 405) are in good quality; also check
+%             % that all noise has been removed from analysis
+%             fprintf('Downsampling failed after 100 attempts. Exiting...')
+%             return
+%         end
+% 
+        % Y_fit_all = fit_result(signal_isosbestic_offset_pls);
+% 
+%         % Simple fitting; similar to GuPPY
+% %         fit_result = polyfit(signal_isosbestic_offset_pls, signal_main_offset_pls, 1);
+% 
+% %         Y_fit_all = (fit_result(1)*signal_isosbestic_offset_pls)+fit_result(2);
+% 
+%         % Upsample everything back
+%         signal_main_offset = upsample_sig(signal_main_offset, N);
+%         signal_isosbestic_offset = upsample_sig(signal_isosbestic_offset, N);  
+%         signal_main_offset_pls = upsample_sig(signal_main_offset_pls, N);
+%         signal_isosbestic_offset_pls = upsample_sig(signal_isosbestic_offset_pls, N);  
+%         signal_main_offset_base = upsample_sig(signal_main_offset_base, N);
+%         signal_isosbestic_offset_base = upsample_sig(signal_isosbestic_offset_base, N);
+%         Y_fit_all = upsample_sig(Y_fit_all, N); 
+%         time_vec_offset = upsample_sig(time_vec_offset, N);
 
-            if ~fit_success
-                signal_main_offset = downsample_sig(signal_main_offset, N);
-                signal_isosbestic_offset = downsample_sig(signal_isosbestic_offset, N);  
-                signal_main_offset_pls = downsample_sig(signal_main_offset_pls, N);
-                signal_isosbestic_offset_pls = downsample_sig(signal_isosbestic_offset_pls, N);  
-                signal_main_offset_base = downsample_sig(signal_main_offset_base, N);
-                signal_isosbestic_offset_base = downsample_sig(signal_isosbestic_offset_base, N);  
-                time_vec_offset = downsample_sig(time_vec_offset, N);
-                N = N+1;
-            end
-        end
-        
-        if N == 100
-            % If fit fails after 100 attempts, you should make sure both of
-            % your signals (465 and 405) are in good quality; also check
-            % that all noise has been removed from analysis
-            fprintf('Downsampling failed after 100 attempts. Exiting...')
-            return
-        end
-        
-        Y_fit_all = fit_result(signal_isosbestic_offset_pls);
+        %% IRLS regression
+        % Keevers and Bressel, 2025
+        % 4.685 is the default
+        % [1.4 3 4.685] were tested in the paper with slightly better
+        % results
+        % Tuning constants for iteratively-reweighted-least-squares regression
+        % Smaller values = more aggressive downweighting of outliers 
+        IRLS_constant = 1.4; 
+        [~, Y_fit_all] = IRLS_dFF(signal_main_offset_pls, signal_isosbestic_offset_pls, IRLS_constant);
 
-        % Simple fitting; similar to GuPPY
-%         fit_result = polyfit(signal_isosbestic_offset_pls, signal_main_offset_pls, 1);
-        
-%         Y_fit_all = (fit_result(1)*signal_isosbestic_offset_pls)+fit_result(2);
-        
-        % Upsample everything back
-        signal_main_offset = upsample_sig(signal_main_offset, N);
-        signal_isosbestic_offset = upsample_sig(signal_isosbestic_offset, N);  
-        signal_main_offset_pls = upsample_sig(signal_main_offset_pls, N);
-        signal_isosbestic_offset_pls = upsample_sig(signal_isosbestic_offset_pls, N);  
-        signal_main_offset_base = upsample_sig(signal_main_offset_base, N);
-        signal_isosbestic_offset_base = upsample_sig(signal_isosbestic_offset_base, N);
-        Y_fit_all = upsample_sig(Y_fit_all, N); 
-        time_vec_offset = upsample_sig(time_vec_offset, N);
-        
-        % Subtract Y_fit to get the residual 'transients'; 
+        %% Subtract Y_fit to get the residual 'transients'; 
         % the standardization was already performed before fitting
         if subtract_405
             signal_main_sub = signal_main_offset_pls - Y_fit_all;
         else
             signal_main_sub = signal_main_offset_pls;
         end
-
         %% Compile and save table
         datafilepath = split(cur_datafiledir.folder, filesep);
         subj_id = split(datafilepath{end-1}, '-');
@@ -308,8 +366,8 @@ function caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1, select_tran
         fill_YY = [min([signal_main; signal_isosbestic]), max([signal_main; signal_isosbestic])];
         YY = repelem(fill_YY, 1, 2);
         fill_color = [0, 0, 153]/255;
-        for trange_idx=1:length(new_tranges)
-            trange = new_tranges{trange_idx};
+        for trange_idx=1:length(tranges)
+            trange = tranges{trange_idx};
             fill_XX = [trange(1) trange(2)];
             XX = [fill_XX, fliplr(fill_XX)];
             h = fill(XX, YY, fill_color);
@@ -329,27 +387,29 @@ function caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1, select_tran
         legend('405 nm','465 nm','AutoUpdate', 'off');
 
         % airPLS baseline plots
-        subplot(8, 2, 5)
-        plot(time_vec_offset, signal_main_offset, 'color', color_main, 'LineWidth', 1);  hold on;
-        plot(time_vec_offset, signal_main_offset_base, 'color', 'black', 'LineWidth', 1);   
-        % Finish up the plot
-        axis tight
-        ylabel('mV', 'FontSize', 12)
-        title(sprintf('Baseline fit'))
-        set(gcf, 'Position',[100, 100, 800, 500])
-        set(gca,'box','off')
+        if do_airPLS
+            subplot(8, 2, 5)
+            plot(time_vec_offset, signal_main_offset, 'color', color_main, 'LineWidth', 1);  hold on;
+            plot(time_vec_offset, signal_main_offset_base, 'color', 'black', 'LineWidth', 1);   
+            % Finish up the plot
+            axis tight
+            ylabel('mV', 'FontSize', 12)
+            title(sprintf('Baseline fit'))
+            set(gcf, 'Position',[100, 100, 800, 500])
+            set(gca,'box','off')
 
-        subplot(8, 2, 7)
-        plot(time_vec_offset, signal_isosbestic_offset, 'color', color_isosbestic, 'LineWidth', 1);  hold on;
-        plot(time_vec_offset, signal_isosbestic_offset_base, 'color', 'black', 'LineWidth', 1);   
-        % Finish up the plot
-        axis tight
-        xlabel('Time, s','FontSize',12)
-        ylabel('mV', 'FontSize', 12)
-    %     title(sprintf('Trial recording (405-fitted)'))
-        set(gcf, 'Position',[100, 100, 800, 500])
-        set(gca,'box','off')
-
+            subplot(8, 2, 7)
+            plot(time_vec_offset, signal_isosbestic_offset, 'color', color_isosbestic, 'LineWidth', 1);  hold on;
+            plot(time_vec_offset, signal_isosbestic_offset_base, 'color', 'black', 'LineWidth', 1);   
+            % Finish up the plot
+            axis tight
+            xlabel('Time, s','FontSize',12)
+            ylabel('mV', 'FontSize', 12)
+        %     title(sprintf('Trial recording (405-fitted)'))
+            set(gcf, 'Position',[100, 100, 800, 500])
+            set(gca,'box','off')
+        end
+        
         subplot(8, 2, 6)
         plot(time_vec_offset, signal_main_offset_pls, 'color', color_main, 'LineWidth', 1);
         % Finish up the plot
@@ -368,7 +428,6 @@ function caraslab_preprocess_FPdata(Savedir, sel, tranges, guess_t1, select_tran
     %     title(sprintf('Trial recording (405-fitted)'))
         set(gcf, 'Position',[100, 100, 800, 500])
         set(gca,'box','off')
-
 
         % 405-fit plot
         subplot(4, 1, 3)
@@ -519,7 +578,7 @@ function new_tranges = select_tranges_from_plot(time_vec, signal_isosbestic, sig
         if length(cur_trange) == 2
             sort(cur_trange);
             if cur_trange(2) > max(time_vec)
-                cur_trange(2) = Inf;
+                cur_trange(2) = max(time_vec);
             end
             fill_color = rand(1,3);
             

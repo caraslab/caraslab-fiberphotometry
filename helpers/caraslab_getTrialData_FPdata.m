@@ -3,11 +3,11 @@ function caraslab_getTrialData_FPdata(Savedir, sel)
 %% Timestamps of interest
 % Change this if needed; It will skip non-present ones
 % Organized in {NAME, CODE, ONSET/OFFSET}
-epocs_names = {{'Spou', 1, 'onset'}, {'Spou', 1, 'offset'}, {'TTyp', 0, 'onset'}};
-
+% epocs_names = {{'Spou', 1, 'onset'}, {'Spou', 1, 'offset'}, {'TTyp', 0, 'onset'}};
+epocs_names = {{'TTyp', 0, 'onset'}};
 %% Some plotting parameters
-plot_window = [-2, 6];
-baseline_window = [-1, 0];
+plot_window = [-0.25, 4];
+baseline_window = [-0.25, 0];
 
 %% AUC parameters
 stim_window = [0, 2];  % ACx; gcamp6s
