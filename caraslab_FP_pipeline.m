@@ -104,12 +104,12 @@ caraslab_behav_pipeline(output_dir, behavior_dir, 'experiment_type', experiment_
 % If T1=0, automatic detection of LED onset will be performed; T2=Inf will
 % read from T1 until the end
 tranges = {[0 Inf]};
-guess_t1 = 1;  % If guess_t1=1, previous T1 identification saved in config will not be assumed
+previous_trange = 1;  % If guess_t1=1, previous T1 identification saved in config will not be assumed
 select_trange = 1;  % Prompt user for selecting time range for analysis
-do_airPLS = 0;
-caraslab_preprocess_FPdata(output_dir, sel, tranges, guess_t1, select_trange, subtract_405, do_airPLS)
+do_airPLS = 1;
+caraslab_preprocess_FPdata(output_dir, sel, tranges, previous_trange, select_trange, subtract_405, do_airPLS)
 
-%% Steps 5-7 are optional and for quick visualization only and will not
+%% Steps 5-7 are optional and for quick visualization only and will not impact analysis
 
 %% 5. Output timestamped waves and AUCs for 1IFC protocol
 caraslab_get1IFCTrialData_FPdata(output_dir, sel)
