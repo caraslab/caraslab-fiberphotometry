@@ -109,7 +109,7 @@ select_trange = 1;  % Prompt user for selecting time range for analysis
 do_airPLS = 0;
 caraslab_preprocess_FPdata(output_dir, sel, tranges, guess_t1, select_trange, subtract_405, do_airPLS)
 
-%% Steps 5-7 are optional and for quick visualization only and will not
+%% Steps 5-7 are optional and for quick visualization only and will not impact analysis
 
 %% 5. Output timestamped waves and AUCs for 1IFC protocol
 caraslab_get1IFCTrialData_FPdata(output_dir, sel)
